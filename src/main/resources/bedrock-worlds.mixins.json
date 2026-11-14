@@ -1,0 +1,7 @@
+{
+  "required": true,
+  "package": "com.peaks.bedrockworlds.mixin",
+  "compatibilityLevel": "JAVA_25",
+  "client": ["SelectWorldScreenMixin", "WorldSelectionListMixin"],
+  "injectors": { "defaultRequire": 1 }
+}

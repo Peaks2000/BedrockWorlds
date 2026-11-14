@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "id": "peaks_bedrock_worlds",
+  "version": "0.1.0",
+  "name": "Bedrock Worlds",
+  "description": "Play Bedrock Dedicated Server worlds from the singleplayer menu in ViaFabricPlusPeaks.",
+  "license": "GPL-3.0-or-later",
+  "environment": "client",
+  "entrypoints": {
+    "client": ["com.peaks.bedrockworlds.BedrockWorlds"]
+  },
+  "mixins": ["bedrock-worlds.mixins.json"],
+  "depends": {
+    "fabricloader": ">=0.19.5",
+    "minecraft": "26.3",
+    "viafabricplus": ["5.1.3-peaks.1", "5.2"],
+    "java": ">=25"
+  }
+}

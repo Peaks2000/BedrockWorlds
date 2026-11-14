@@ -1,0 +1,60 @@
+import java.util.zip.ZipFile
+
+plugins {
+    id 'net.fabricmc.fabric-loom' version '1.17-SNAPSHOT'
+}
+
+group = 'com.peaks'
+version = '0.1.0'
+
+repositories {
+    mavenCentral()
+    maven { url = 'https://maven.fabricmc.net/' }
+}
+
+def forkJar = providers.gradleProperty('viaFabricPlusJar').orElse('libs/ViaFabricPlusPeaks-5.2.jar')
+def compileLibraries = [
+    'fabric-api-base', 'fabric-lifecycle-events-v1', 'fabric-networking-api-v1',
+    'MinecraftAuth', 'ViaBedrock', 'viaversion-common', 'netty-transport-nethernet'
+]
+def forkLibraries = tasks.register('extractForkLibraries') {
+    inputs.file(forkJar.map { file(it) })
+    def destination = layout.buildDirectory.dir('fork-libraries')
+    outputs.dir(destination)
+    doLast {
+        delete(destination)
+        def output = destination.get().asFile
+        output.mkdirs()
+        new ZipFile(file(forkJar.get())).withCloseable { archive ->
+            archive.entries().findAll { entry ->
+                entry.name.startsWith('META-INF/jars/') &&
+                    compileLibraries.any { entry.name.startsWith("META-INF/jars/${it}-") }
+            }.each { entry ->
+                new File(output, entry.name.tokenize('/').last()).withOutputStream {
+                    archive.getInputStream(entry).withCloseable { stream -> stream.transferTo(it) }
+                }
+            }
+        }
+    }
+}
+
+dependencies {
+    minecraft 'com.mojang:minecraft:26.3'
+    implementation 'net.fabricmc:fabric-loader:0.19.5'
+    compileOnly files(forkJar.map { file(it) })
+    compileOnly fileTree(layout.buildDirectory.dir('fork-libraries')) { include '*.jar' }.builtBy(forkLibraries)
+    runtimeOnly files(forkJar.map { file(it) })
+}
+
+java {
+    toolchain.languageVersion = JavaLanguageVersion.of(25)
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    options.release = 25
+}
+
+jar {
+    from('LICENSE')
+}
