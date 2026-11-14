@@ -1,6 +1,6 @@
 # Bedrock Worlds for ViaFabricPlusPeaks
 
-Bedrock Worlds is a separate Fabric client mod for Minecraft Java 26.3 and Java 25. Install the add-on JAR beside ViaFabricPlusPeaks 5.2. On Windows, use the build from ViaFabricPlusPeaks `main` at commit `35e7eb82` or an equivalent build with the Windows x64 M152 WebRTC native.
+Bedrock Worlds is a separate Fabric client mod for Minecraft Java 26.3 and Java 25. Install the add-on JAR beside ViaFabricPlusPeaks 5.2.5.
 
 1. Link your Microsoft Bedrock account in ViaFabricPlusPeaks.
 2. Open **Singleplayer → Bedrock Worlds → Create New World**. Choose the name, seed, game mode and difficulty.
@@ -16,16 +16,18 @@ Worlds live under `Bedrock worlds/worlds` in Minecraft's game directory. Each wo
 - **Apple Silicon macOS** uses Docker Desktop to run Mojang's Linux amd64 server. Start Docker Desktop and make the instance directory available for file sharing. The companion publishes the signaling and gameplay ports to loopback. Docker may pull the Ubuntu 24.04 image on the first run.
 - Intel macOS and Linux ARM require additional WebRTC or dedicated-server binaries.
 
-Marketplace purchase sync is unavailable. The linked account is used for joining the server. The add-on picker uses local pack archives, and custom rendering is subject to ViaBedrock's pack conversion support. Mojang documents activating purchased add-ons in Minecraft Bedrock and Realms. [Marketplace Add-On activation](https://help.minecraft.net/hc/en-us/articles/24120525083533-How-to-activate-Minecraft-Add-On) · [Dedicated Server download and requirements](https://www.minecraft.net/en-us/download/server/bedrock)
+Open **Add-ons → Marketplace** to browse the owned world content for your linked Bedrock account. Choose an entry to open its Minecraft Marketplace page. The library uses Minecraft's Marketplace entitlement endpoint and the PlayFab catalog with your existing Bedrock session. Mojang documents activating purchased add-ons in Minecraft Bedrock and Realms. Local Dedicated Server worlds use the separately imported server-compatible pack archives. To play an owned pack over LAN, activate it in Minecraft Bedrock, enable LAN multiplayer on the world, then use **Join Bedrock LAN / Friends** in the companion. The Bedrock client hosts the world for that session. [Marketplace Add-On activation](https://help.minecraft.net/hc/en-us/articles/24120525083533-How-to-activate-Minecraft-Add-On) · [Dedicated Server download and requirements](https://www.minecraft.net/en-us/download/server/bedrock)
 
 To diagnose a server startup error, open `Bedrock worlds/bedrock-server.log` in the instance game directory. The Mojang server binary is downloaded on demand and verified by SHA-256.
 
 ## Build
 
-Use JDK 25. Put the ViaFabricPlusPeaks 5.2 JAR in `libs`, or pass its path to Gradle.
+Use JDK 25. Put the ViaFabricPlusPeaks 5.2.5 JAR in `libs`, or pass its path to Gradle.
 
 ```sh
-./gradlew -PviaFabricPlusJar=/path/to/ViaFabricPlusPeaks-5.2.jar build
+./gradlew -PviaFabricPlusJar=/path/to/ViaFabricPlusPeaks-5.2.5.jar build
 ```
 
-On Windows use `gradlew.bat`. The result is `build/libs/bedrock-worlds-0.1.0.jar`. Tested against [ViaFabricPlusPeaks main at 35e7eb82](https://github.com/Peaks2000/ViaFabricPlusPeaks/commit/35e7eb8221c51417d3d29d1a911f46d50a87f508).
+On Windows use `gradlew.bat`. The result is `build/libs/bedrock-worlds-0.2.0.jar`.
+
+Marketplace protocol reference: [read-only entitlement request](https://github.com/Daniel-Ric/PlayFab-Purchase-Service/blob/8ff0ecf82fbaeea756c6ccf35b13f930982c1e79/src/services/minecraft.service.js) and [PlayFab Get Items](https://learn.microsoft.com/en-us/rest/api/playfab/economy/catalog/get-items?view=playfab-rest).

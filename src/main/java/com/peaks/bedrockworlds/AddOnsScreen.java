@@ -69,13 +69,16 @@ final class AddOnsScreen extends Screen {
         }).bounds(left + panel - 28, height - 52, 28, 20).build());
         previous.active = page > 0;
         next.active = page + 1 < pages;
-        int third = (panel - 8) / 3;
+        int buttonWidth = (panel - 12) / 4;
         addRenderableWidget(Button.builder(Component.literal("Open Folder"),
-            button -> Blaze3D.openPath(folder)).bounds(left, height - 28, third, 20).build());
+            button -> Blaze3D.openPath(folder)).bounds(left, height - 28, buttonWidth, 20).build());
         addRenderableWidget(Button.builder(Component.literal("Refresh"), button -> rebuildWidgets())
-            .bounds(left + third + 4, height - 28, third, 20).build());
+            .bounds(left + buttonWidth + 4, height - 28, buttonWidth, 20).build());
+        addRenderableWidget(Button.builder(Component.literal("Marketplace"),
+            button -> minecraft.gui.setScreen(new MarketplaceScreen(this)))
+            .bounds(left + (buttonWidth + 4) * 2, height - 28, buttonWidth, 20).build());
         addRenderableWidget(Button.builder(CommonComponents.GUI_DONE, button -> onClose())
-            .bounds(left + (third + 4) * 2, height - 28, third, 20).build());
+            .bounds(left + (buttonWidth + 4) * 3, height - 28, buttonWidth, 20).build());
     }
 
     @Override

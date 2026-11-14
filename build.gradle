@@ -5,14 +5,14 @@ plugins {
 }
 
 group = 'com.peaks'
-version = '0.1.0'
+version = '0.2.0'
 
 repositories {
     mavenCentral()
     maven { url = 'https://maven.fabricmc.net/' }
 }
 
-def forkJar = providers.gradleProperty('viaFabricPlusJar').orElse('libs/ViaFabricPlusPeaks-5.2.jar')
+def forkJar = providers.gradleProperty('viaFabricPlusJar').orElse('libs/ViaFabricPlusPeaks-5.2.5.jar')
 def compileLibraries = [
     'fabric-api-base', 'fabric-lifecycle-events-v1', 'fabric-networking-api-v1',
     'MinecraftAuth', 'ViaBedrock', 'viaversion-common', 'netty-transport-nethernet'

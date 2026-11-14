@@ -162,7 +162,7 @@ final class CreateWorldScreen extends Screen {
         graphics.text(font, "Seed (optional)", left + (panelWidth - 4) / 2 + 4, top, 0xffdddddd);
         graphics.text(font, "Add-ons", left, top + 92, 0xffdddddd);
         int y = top + 129;
-        String hint = status.isEmpty() ? "Import server-compatible packs. Marketplace sync is unavailable." : status;
+        String hint = status.isEmpty() ? "Import server-compatible packs or view your Marketplace library." : status;
         for (var line : font.split(Component.literal(hint), panelWidth)) {
             graphics.text(font, line, left, y, status.isEmpty() ? 0xffaaaaaa : 0xffffaaaa);
             y += 10;
