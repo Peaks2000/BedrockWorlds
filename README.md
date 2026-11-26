@@ -32,6 +32,6 @@ Use JDK 25. Put the ViaFabricPlusPeaks 6.0.0-beta.2 JAR in `libs`, or pass its p
 ./gradlew -PviaFabricPlusJar=/path/to/ViaFabricPlusPeaks-6.0.0-beta.2.jar build
 ```
 
-On Windows use `gradlew.bat`. The result is `build/libs/bedrock-worlds-0.4.0.jar`.
+On Windows use `gradlew.bat`. The result is `build/libs/bedrock-worlds-0.4.1.jar`.
 
 Marketplace protocol reference: [read-only entitlement request](https://github.com/Daniel-Ric/PlayFab-Purchase-Service/blob/8ff0ecf82fbaeea756c6ccf35b13f930982c1e79/src/services/minecraft.service.js) and [PlayFab Get Items](https://learn.microsoft.com/en-us/rest/api/playfab/economy/catalog/get-items?view=playfab-rest).

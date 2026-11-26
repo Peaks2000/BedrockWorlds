@@ -39,6 +39,7 @@ final class PackInstaller {
         PackInstaller installer = new PackInstaller();
         installer.loadReferences(world.resolve("world_behavior_packs.json"), installer.behaviors);
         installer.loadReferences(world.resolve("world_resource_packs.json"), installer.resources);
+        installer.loadInstalledPacks(world);
         Path temporary = Files.createTempDirectory(world, ".packs-");
         try {
             for (Path archive : archives) {
@@ -62,12 +63,56 @@ final class PackInstaller {
         }
         try (Reader reader = Files.newBufferedReader(file)) {
             for (var entry : JsonParser.parseReader(reader).getAsJsonArray()) {
-                ids.add(UUID.fromString(entry.getAsJsonObject().get("pack_id").getAsString()));
+                UUID.fromString(entry.getAsJsonObject().get("pack_id").getAsString());
                 target.add(entry.deepCopy());
             }
         } catch (RuntimeException exception) {
             throw new IOException("The world template has an unreadable pack list.");
         }
+    }
+
+    private void loadInstalledPacks(Path world) throws IOException {
+        for (String folder : List.of("behavior_packs", "resource_packs")) {
+            Path root = world.resolve(folder);
+            if (!Files.isDirectory(root)) {
+                continue;
+            }
+            try (var paths = Files.walk(root)) {
+                for (Path manifest : paths.filter(Files::isRegularFile)
+                    .filter(path -> path.getFileName().toString().equals("manifest.json")).toList()) {
+                    if (Files.size(manifest) > 1024 * 1024) {
+                        throw new IOException("The pack manifest is too large.");
+                    }
+                    try (Reader reader = Files.newBufferedReader(manifest)) {
+                        UUID id = UUID.fromString(JsonParser.parseReader(reader).getAsJsonObject()
+                            .getAsJsonObject("header").get("uuid").getAsString());
+                        if (!ids.add(id)) {
+                            throw new IOException("The world template contains duplicate Bedrock pack IDs.");
+                        }
+                    }
+                }
+            } catch (RuntimeException exception) {
+                throw new IOException("The world template contains an unreadable pack manifest.", exception);
+            }
+        }
+    }
+
+    private static JsonObject reference(JsonArray references, UUID id) {
+        for (var entry : references) {
+            var value = entry.getAsJsonObject();
+            if (UUID.fromString(value.get("pack_id").getAsString()).equals(id)) {
+                return value;
+            }
+        }
+        return null;
+    }
+
+    private static String versionKey(com.google.gson.JsonElement version) {
+        if (version.isJsonArray()) {
+            return String.join(".", version.getAsJsonArray().asList().stream()
+                .map(com.google.gson.JsonElement::getAsString).toList());
+        }
+        return version.getAsString();
     }
 
     private void installArchive(Path world, Path archive, Path temporary) throws IOException {
@@ -184,10 +229,20 @@ final class PackInstaller {
             if (!ids.add(id)) {
                 throw new IOException("Two selected packs have the same Bedrock pack ID.");
             }
-            JsonObject reference = new JsonObject();
-            reference.addProperty("pack_id", id.toString());
-            reference.add("version", version.deepCopy());
-            (behavior ? behaviors : resources).add(reference);
+            JsonArray target = behavior ? behaviors : resources;
+            if (reference(behavior ? resources : behaviors, id) != null) {
+                throw new IOException("The selected pack's type conflicts with the world template.");
+            }
+            JsonObject existing = reference(target, id);
+            if (existing != null && !versionKey(version).equals(versionKey(existing.get("version")))) {
+                throw new IOException("The selected pack's version conflicts with the world template.");
+            }
+            if (existing == null) {
+                JsonObject reference = new JsonObject();
+                reference.addProperty("pack_id", id.toString());
+                reference.add("version", version.deepCopy());
+                target.add(reference);
+            }
             Path packs = Files.createDirectories(world.resolve(behavior ? "behavior_packs" : "resource_packs"));
             Files.move(directory, packs.resolve(id.toString()));
         } catch (RuntimeException exception) {

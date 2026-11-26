@@ -105,6 +105,72 @@ public final class WorldContentTest {
         }
     }
 
+    @org.junit.Test
+    public void installsExternalResourcePackAlreadyReferencedByTemplate() throws Exception {
+        Path root = Files.createTempDirectory("bedrock-reference-");
+        try {
+            Path world = Files.createDirectory(root.resolve("world"));
+            Files.writeString(world.resolve("world_resource_packs.json"),
+                "[{\"pack_id\":\"" + PACK + "\",\"version\":[1,0,0]}]");
+            Path pack = Files.createDirectory(root.resolve("pack"));
+            Files.writeString(pack.resolve("manifest.json"), manifest(PACK, "resources"));
+            Files.writeString(pack.resolve("asset.txt"), "resource data");
+            PackInstaller.install(world, List.of(), List.of(pack));
+            var references = com.google.gson.JsonParser.parseString(
+                Files.readString(world.resolve("world_resource_packs.json"))).getAsJsonArray();
+            org.junit.Assert.assertEquals(1, references.size());
+            org.junit.Assert.assertEquals("resource data",
+                Files.readString(world.resolve("resource_packs").resolve(PACK).resolve("asset.txt")));
+            org.junit.Assert.assertTrue(Files.exists(pack.resolve("asset.txt")));
+        } finally {
+            WorldStore.deleteTree(root);
+        }
+    }
+
+    @org.junit.Test
+    public void rejectsExternalPackWithConflictingReferencedVersion() throws Exception {
+        rejectsConflictingReference("world_resource_packs.json", "[2,0,0]");
+    }
+
+    @org.junit.Test
+    public void rejectsExternalPackWithConflictingReferencedType() throws Exception {
+        rejectsConflictingReference("world_behavior_packs.json", "[1,0,0]");
+    }
+
+    private static void rejectsConflictingReference(String file, String version) throws Exception {
+        Path root = Files.createTempDirectory("bedrock-reference-conflict-");
+        try {
+            Path world = Files.createDirectory(root.resolve("world"));
+            String reference = "[{\"pack_id\":\"" + PACK + "\",\"version\":" + version + "}]";
+            Files.writeString(world.resolve(file), reference);
+            Path pack = Files.createDirectory(root.resolve("pack"));
+            Files.writeString(pack.resolve("manifest.json"), manifest(PACK, "resources"));
+            org.junit.Assert.assertThrows(IOException.class,
+                () -> PackInstaller.install(world, List.of(), List.of(pack)));
+            org.junit.Assert.assertEquals(reference, Files.readString(world.resolve(file)));
+        } finally {
+            WorldStore.deleteTree(root);
+        }
+    }
+
+    @org.junit.Test
+    public void rejectsPackAlreadyBundledInsideTemplate() throws Exception {
+        Path root = Files.createTempDirectory("bedrock-bundled-conflict-");
+        try {
+            Path world = Files.createDirectory(root.resolve("world"));
+            Path bundled = Files.createDirectories(world.resolve("resource_packs/bundled"));
+            Files.writeString(bundled.resolve("manifest.json"), manifest(PACK, "resources"));
+            Files.writeString(bundled.resolve("asset.txt"), "original template data");
+            Path pack = Files.createDirectory(root.resolve("external"));
+            Files.writeString(pack.resolve("manifest.json"), manifest(PACK, "resources"));
+            org.junit.Assert.assertThrows(IOException.class,
+                () -> PackInstaller.install(world, List.of(), List.of(pack)));
+            org.junit.Assert.assertEquals("original template data", Files.readString(bundled.resolve("asset.txt")));
+        } finally {
+            WorldStore.deleteTree(root);
+        }
+    }
+
     private static String manifest(String id, String type) {
         return "{\"format_version\":2,\"header\":{\"name\":\"Fixture\",\"description\":\"Fixture\",\"uuid\":\""+id+"\",\"version\":[1,0,0]},\"modules\":[{\"type\":\""+type+"\",\"uuid\":\""+UUID.randomUUID()+"\",\"version\":[1,0,0]}]}";
     }
