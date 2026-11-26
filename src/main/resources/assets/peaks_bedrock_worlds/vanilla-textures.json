@@ -3008,7 +3008,8 @@
     "textures/entity/boat/chest_boat_spruce"
   ],
   "entity/chicken/chicken_temperate": [
-    "textures/entity/chicken/chicken"
+    "textures/entity/chicken/chicken",
+    "textures/entity/chicken"
   ],
   "entity/conduit/cage": [
     "textures/blocks/conduit_cage"

@@ -93,6 +93,97 @@ public class VanillaTexturesTest {
         assertTrue(output.keySet().stream().noneMatch(path -> path.contains("/trims/")));
     }
 
+    @Test
+    public void splitsSheepBodyAndWoolAndMakesTintedBodyPixelsOpaque() throws Exception {
+        var atlas = new BufferedImage(128, 128, BufferedImage.TYPE_INT_ARGB);
+        atlas.setRGB(20, 20, 0x04aabbcc);
+        atlas.setRGB(20, 84, 0xff112233);
+        var result = VanillaTextures.convert(List.of(source(Map.of("textures/entity/sheep/sheep.tga", tga(atlas)))));
+        var body = entityImage(result, "sheep/sheep");
+        var wool = entityImage(result, "sheep/sheep_wool");
+        assertEquals(128, body.getWidth());
+        assertEquals(64, body.getHeight());
+        assertEquals(0xffaabbcc, body.getRGB(20, 20));
+        assertEquals(0xff112233, wool.getRGB(20, 20));
+        assertEquals(0, wool.getRGB(19, 20));
+    }
+
+    @Test
+    public void aHigherPackCanSupplyItsOwnSheepWoolLayer() throws Exception {
+        byte[] combined = png(64, 64, 0xff222222);
+        byte[] explicit = png(64, 32, 0xffabcdef);
+        var result = VanillaTextures.convert(List.of(
+            source(Map.of("textures/entity/sheep/sheep.png", combined)),
+            source(Map.of("textures/entity/sheep/sheep_wool.png", explicit))));
+        assertArrayEquals(explicit, result.get("assets/minecraft/textures/entity/sheep/sheep_wool.png"));
+        assertEquals(32, entityImage(result, "sheep/sheep").getHeight());
+    }
+
+    @Test
+    public void babySheepUsesBedrocksTintMaskAndJavaAtlasWidth() throws Exception {
+        var atlas = new BufferedImage(32, 32, BufferedImage.TYPE_INT_ARGB);
+        atlas.setRGB(7, 8, 0x01aabbcc);
+        atlas.setRGB(8, 8, 0xff112233);
+        var result = VanillaTextures.convert(List.of(source(Map.of("textures/entity/sheep/sheep_baby.tga", tga(atlas)))));
+        var body = entityImage(result, "sheep/sheep_baby");
+        var wool = entityImage(result, "sheep/sheep_wool_baby");
+        assertEquals(64, body.getWidth());
+        assertEquals(32, body.getHeight());
+        assertEquals(0xffaabbcc, body.getRGB(7, 8));
+        assertEquals(0, wool.getRGB(7, 8));
+        assertEquals(0xff112233, wool.getRGB(8, 8));
+    }
+
+    @Test
+    public void padsLegacyZombieAndHuskAtlasesWithoutScalingTheirFaces() throws Exception {
+        byte[] head = png(64, 32, 0xffabcdef);
+        var result = VanillaTextures.convert(List.of(source(Map.of(
+            "textures/entity/zombie/zombie.png", head, "textures/entity/zombie/husk.png", head))));
+        for (String entity : List.of("zombie", "husk")) {
+            var atlas = entityImage(result, "zombie/" + entity);
+            assertEquals(64, atlas.getHeight());
+            assertEquals(0xffabcdef, atlas.getRGB(8, 12));
+            assertEquals(0, atlas.getRGB(8, 48));
+        }
+    }
+
+    @Test
+    public void drownedSeparatesAndRepositionsBaseAndOuterLayerFaces() throws Exception {
+        var atlas = new BufferedImage(64, 64, BufferedImage.TYPE_INT_ARGB);
+        atlas.setRGB(50, 20, 0xffabc123); // One pixel on the mirrored left arm.
+        atlas.setRGB(50, 52, 0xff445566); // Right sleeve.
+        atlas.setRGB(45, 10, 0xff778899); // Hat.
+        var result = VanillaTextures.convert(List.of(source(Map.of("textures/entity/zombie/drowned.tga", tga(atlas)))));
+        var body = entityImage(result, "zombie/drowned");
+        var coat = entityImage(result, "zombie/drowned_outer_layer");
+        assertEquals(0xffabc123, body.getRGB(33, 52));
+        assertEquals(0, body.getRGB(50, 20));
+        assertEquals(0xff445566, coat.getRGB(42, 20));
+        assertEquals(0xff778899, coat.getRGB(13, 10));
+    }
+
+    private static BufferedImage entityImage(Map<String, byte[]> result, String name) throws IOException {
+        return ImageIO.read(new ByteArrayInputStream(result.get("assets/minecraft/textures/entity/" + name + ".png")));
+    }
+
+    private static byte[] tga(BufferedImage atlas) {
+        int width = atlas.getWidth();
+        int height = atlas.getHeight();
+        var bytes = java.nio.ByteBuffer.allocate(18 + width * height * 4).order(java.nio.ByteOrder.LITTLE_ENDIAN);
+        bytes.put(2, (byte) 2);
+        bytes.putShort(12, (short) width);
+        bytes.putShort(14, (short) height);
+        bytes.put(16, (byte) 32);
+        bytes.put(17, (byte) 40);
+        bytes.position(18);
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                bytes.putInt(atlas.getRGB(x, y));
+            }
+        }
+        return bytes.array();
+    }
+
     private static VanillaTextures.Source source(Map<String, byte[]> files) {
         return new VanillaTextures.Source(List.copyOf(files.keySet()), files::get);
     }

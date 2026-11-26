@@ -29,11 +29,12 @@ final class VanillaTextures {
     static Map<String, byte[]> convert(List<Source> bottomToTop) {
         Map<String, byte[]> output = new LinkedHashMap<>();
         for (Source pack : bottomToTop) {
+            Map<String, byte[]> layer = new LinkedHashMap<>();
             Map<String, Image> decoded = new LinkedHashMap<>();
             Map<String, JsonObject> animations = animations(pack);
             for (var mapping : MAPPINGS.entrySet()) {
                 for (String source : mapping.getValue()) {
-                    if (copy(pack, decoded, animations, source, mapping.getKey(), output)) {
+                    if (copy(pack, decoded, animations, source, mapping.getKey(), layer)) {
                         break;
                     }
                 }
@@ -53,9 +54,16 @@ final class VanillaTextures {
                 }
                 // Explicit mappings also describe paths whose Java and Bedrock names differ.
                 if (!MAPPINGS.containsKey(target) && !MAPPED_SOURCES.contains(base)) {
-                    copy(pack, decoded, animations, base, target, output);
+                    copy(pack, decoded, animations, base, target, layer);
                 }
             }
+            EntityTextures.adapt(pack, layer);
+            for (String path : layer.keySet()) {
+                if (path.endsWith(".png")) {
+                    output.remove(path + ".mcmeta");
+                }
+            }
+            output.putAll(layer);
         }
         return output;
     }
