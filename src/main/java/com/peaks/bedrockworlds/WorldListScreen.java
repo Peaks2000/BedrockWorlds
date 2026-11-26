@@ -58,6 +58,10 @@ public final class WorldListScreen extends Screen {
             .bounds(left + panelWidth - 28, footer - 24, 28, 20).build());
         previous.active = page > 0;
         next.active = page + 1 < pages;
+        addRenderableWidget(Button.builder(Component.literal("Marketplace"), button -> {
+            CreateWorldScreen create = new CreateWorldScreen(this);
+            minecraft.gui.setScreen(new MarketplaceScreen(this, create::selectMarketplace));
+        }).bounds(left + 32, footer - 24, panelWidth - 64, 20).build());
         int half = (panelWidth - 4) / 2;
         addRenderableWidget(Button.builder(Component.literal("Create New World"),
             button -> minecraft.gui.setScreen(new CreateWorldScreen(this))).bounds(left, footer, half, 20).build());

@@ -28,20 +28,45 @@ final class PackInstaller {
     private final JsonArray resources = new JsonArray();
 
     static void install(Path world, List<Path> archives) throws IOException {
-        if (archives.isEmpty()) {
+        install(world, archives, List.of());
+    }
+
+    static void install(Path world, List<Path> archives, List<Path> directories) throws IOException {
+        if (archives.isEmpty() && directories.isEmpty()) {
             return;
         }
 
         PackInstaller installer = new PackInstaller();
+        installer.loadReferences(world.resolve("world_behavior_packs.json"), installer.behaviors);
+        installer.loadReferences(world.resolve("world_resource_packs.json"), installer.resources);
         Path temporary = Files.createTempDirectory(world, ".packs-");
         try {
             for (Path archive : archives) {
                 installer.installArchive(world, archive, temporary);
             }
+            for (Path directory : directories) {
+                Path copy = Files.createTempDirectory(temporary, "marketplace-pack-");
+                WorldStore.copyTree(directory, copy);
+                installer.installManifest(world, copy.resolve("manifest.json"));
+            }
             Files.writeString(world.resolve("world_behavior_packs.json"), WorldStore.JSON.toJson(installer.behaviors));
             Files.writeString(world.resolve("world_resource_packs.json"), WorldStore.JSON.toJson(installer.resources));
         } finally {
             WorldStore.deleteTree(temporary);
+        }
+    }
+
+    private void loadReferences(Path file, JsonArray target) throws IOException {
+        if (!Files.isRegularFile(file)) {
+            return;
+        }
+        try (Reader reader = Files.newBufferedReader(file)) {
+            for (var entry : JsonParser.parseReader(reader).getAsJsonArray()) {
+                ids.add(UUID.fromString(entry.getAsJsonObject().get("pack_id").getAsString()));
+                target.add(entry.deepCopy());
+            }
+        } catch (RuntimeException exception) {
+            throw new IOException("The world template has an unreadable pack list.");
         }
     }
 

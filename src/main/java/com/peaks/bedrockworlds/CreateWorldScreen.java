@@ -21,6 +21,7 @@ import net.minecraft.network.chat.Component;
 final class CreateWorldScreen extends Screen {
     private final WorldListScreen parent;
     private final Set<Path> files = new LinkedHashSet<>();
+    private final Set<MarketplaceLibrary.Item> marketplace = new LinkedHashSet<>();
 
     private String name = "New World";
     private String seed = "";
@@ -74,6 +75,7 @@ final class CreateWorldScreen extends Screen {
             .bounds(left, top + 104, panelWidth - 69, 20).build());
         clear = addRenderableWidget(Button.builder(Component.literal("Clear"), button -> {
             files.clear();
+            marketplace.clear();
             status = "";
             updateButtons();
         }).bounds(left + panelWidth - 65, top + 104, 65, 20).build());
@@ -87,6 +89,22 @@ final class CreateWorldScreen extends Screen {
 
     private static Component option(String identifier) {
         return Component.literal(identifier.substring(0, 1).toUpperCase(Locale.ROOT) + identifier.substring(1));
+    }
+
+    void selectMarketplace(MarketplaceLibrary.Item item) {
+        if (isTemplate(item)) {
+            marketplace.removeIf(CreateWorldScreen::isTemplate);
+        }
+        marketplace.add(item);
+        if (name.equals("New World")) {
+            name = item.name().substring(0, Math.min(64, item.name().length()));
+        }
+        status = item.name() + " selected.";
+        minecraft.gui.setScreen(this);
+    }
+
+    private static boolean isTemplate(MarketplaceLibrary.Item item) {
+        return item.kind().equals("World template") || item.kind().equals("Mash-up");
     }
 
     private void chooseAddOns() {
@@ -113,11 +131,16 @@ final class CreateWorldScreen extends Screen {
     }
 
     private void updateButtons() {
-        addOns.setMessage(Component.literal(files.isEmpty() ? "Add-ons…" : "Add-ons… (" + files.size() + " selected)"));
+        int count = files.size() + marketplace.size();
+        addOns.setMessage(Component.literal(count == 0 ? "Add-ons…" : "Add-ons… (" + count + " selected)"));
         String tooltip = files.isEmpty() ? "Choose or drag in .mcaddon and .mcpack files."
             : String.join("\n", files.stream().map(path -> path.getFileName().toString()).limit(12).toList());
+        if (!marketplace.isEmpty()) {
+            tooltip = String.join("\n", marketplace.stream().map(MarketplaceLibrary.Item::name).toList())
+                + (files.isEmpty() ? "" : "\n" + tooltip);
+        }
         addOns.setTooltip(Tooltip.create(Component.literal(tooltip)));
-        clear.active = !files.isEmpty();
+        clear.active = count != 0;
         if (create != null) {
             create.active = !name.isBlank();
         }
@@ -126,25 +149,49 @@ final class CreateWorldScreen extends Screen {
     private void create() {
         var options = new WorldStore.Options(name.strip(), seed.strip(), mode, difficulty, cheats);
         var archives = List.copyOf(files);
+        var selected = List.copyOf(marketplace);
+        var account = com.viaversion.viafabricplus.save.SaveManager.INSTANCE.getAccountsSave().getBedrockAccount();
+        if (!selected.isEmpty() && account == null) {
+            status = "Link a Bedrock account before creating this world.";
+            return;
+        }
         var store = BedrockWorlds.store(minecraft);
-        Screen progress = new WorldStatusScreen("Creating Bedrock world…", null);
+        Screen progress = new WorldStatusScreen(selected.isEmpty() ? "Creating Bedrock world…"
+            : "Preparing owned Marketplace content…", null);
         minecraft.gui.setScreen(progress);
         BedrockWorlds.WORKER.execute(() -> {
+            var content = new java.util.ArrayList<MarketplaceContent.Prepared>();
             try {
-                store.create(options, archives);
+                for (var item : selected) {
+                    content.add(MarketplaceContent.prepare(account, item, store.root()));
+                }
+                if (!selected.isEmpty() && account != com.viaversion.viafabricplus.save.SaveManager.INSTANCE
+                    .getAccountsSave().getBedrockAccount()) {
+                    throw new IOException("The linked account changed. Create the world again.");
+                }
+                store.create(options, archives, content, selected);
                 minecraft.execute(() -> {
                     if (minecraft.gui.screen() == progress) {
                         parent.setStatus("");
                         minecraft.gui.setScreen(parent);
                     }
                 });
-            } catch (IOException | RuntimeException exception) {
+            } catch (Exception exception) {
                 minecraft.execute(() -> {
                     if (minecraft.gui.screen() == progress) {
-                        status = exception.getMessage() == null ? "Could not create the Bedrock world." : exception.getMessage();
+                        status = exception.getClass() == IOException.class ? exception.getMessage()
+                            : "Could not prepare the world or sign in to the Marketplace.";
                         minecraft.gui.setScreen(this);
                     }
                 });
+            } finally {
+                for (var prepared : content) {
+                    try {
+                        prepared.close();
+                    } catch (IOException exception) {
+                        BedrockWorlds.LOG.warn("Could not remove temporary Marketplace content.");
+                    }
+                }
             }
         });
     }
@@ -162,7 +209,7 @@ final class CreateWorldScreen extends Screen {
         graphics.text(font, "Seed (optional)", left + (panelWidth - 4) / 2 + 4, top, 0xffdddddd);
         graphics.text(font, "Add-ons", left, top + 92, 0xffdddddd);
         int y = top + 129;
-        String hint = status.isEmpty() ? "Import server-compatible packs or view your Marketplace library." : status;
+        String hint = status.isEmpty() ? "Import packs or choose owned content from your Marketplace library." : status;
         for (var line : font.split(Component.literal(hint), panelWidth)) {
             graphics.text(font, line, left, y, status.isEmpty() ? 0xffaaaaaa : 0xffffaaaa);
             y += 10;

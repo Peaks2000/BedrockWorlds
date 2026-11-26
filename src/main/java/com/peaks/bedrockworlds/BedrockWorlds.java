@@ -4,7 +4,7 @@ package com.peaks.bedrockworlds;
 
 import com.viaversion.viafabricplus.injection.access.core.IServerData;
 import com.viaversion.viafabricplus.save.SaveManager;
-import com.viaversion.viafabricplus.util.bedrock.CompatibilityViaBedrockRuntime;
+import com.viaversion.viafabricplus.util.bedrock.BedrockProtocolCompatibility;
 import com.viaversion.viafabricplus.util.bedrock.WebRtcNativeLibrary;
 import java.io.IOException;
 import java.time.Duration;
@@ -12,6 +12,7 @@ import java.util.concurrent.Executors;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.ConnectScreen;
 import net.minecraft.client.gui.screens.DisconnectedScreen;
@@ -20,6 +21,7 @@ import net.minecraft.client.multiplayer.ServerData;
 import net.minecraft.client.multiplayer.resolver.ServerAddress;
 import net.minecraft.network.chat.Component;
 import net.raphimc.minecraftauth.bedrock.BedrockAuthManager;
+import net.raphimc.viabedrock.api.BedrockProtocolVersion;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -36,6 +38,12 @@ public final class BedrockWorlds implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
         ClientTickEvents.END_CLIENT_TICK.register(BedrockWorlds::tick);
+        ClientPlayConnectionEvents.DISCONNECT.register((listener, client) -> {
+            Session session = active;
+            if (session != null && listener.getServerData() == session.data) {
+                stop(session);
+            }
+        });
         ClientLifecycleEvents.CLIENT_STOPPING.register(client -> shutdown());
         Runtime.getRuntime().addShutdownHook(new Thread(BedrockWorlds::shutdown, "Bedrock Worlds shutdown"));
     }
@@ -72,6 +80,14 @@ public final class BedrockWorlds implements ClientModInitializer {
         Screen progress = client.gui.screen();
         WORKER.execute(() -> {
             try {
+                var required = WorldStore.marketplace(world);
+                if (!required.isEmpty()) {
+                    var owned = MarketplaceLibrary.read(account, client.getLanguageManager().getSelected()).stream()
+                        .filter(item -> item.id() != null).map(item -> item.id().toString()).toList();
+                    if (!owned.containsAll(required)) {
+                        throw new IOException("The linked account no longer owns all Marketplace packs used by this world.");
+                    }
+                }
                 var identity = account.getMinecraftMultiplayerToken().getUpToDate();
                 int port = server.start(identity.getDisplayName(), identity.getXuid(), downloadApproved);
                 client.execute(() -> {
@@ -115,11 +131,28 @@ public final class BedrockWorlds implements ClientModInitializer {
         String route = "127.0.0.1:" + port;
         ServerData data = new ServerData(name, route, ServerData.Type.OTHER);
         IServerData bedrock = (IServerData) data;
-        bedrock.viaFabricPlus$forceVersion(CompatibilityViaBedrockRuntime.compatibilityVersion());
+        bedrock.viaFabricPlus$forceVersion(BedrockProtocolVersion.BEDROCK_LATEST);
+        int protocol = BedrockProtocolCompatibility.protocolForGameVersion(ServerRuntime.VERSION);
+        if (protocol == BedrockProtocolCompatibility.UNKNOWN_PROTOCOL) {
+            throw new IllegalStateException("This ViaFabricPlusPeaks build does not support the installed server version.");
+        }
+        bedrock.viaFabricPlus$setBedrockWireProtocol(protocol);
+        data.setResourcePackStatus(ServerData.ServerPackStatus.ENABLED);
         bedrock.viaFabricPlus$setUseBedrockAccount(true);
         session.data = data;
         session.loginDeadline = System.nanoTime() + Duration.ofSeconds(90).toNanos();
         ConnectScreen.startConnecting(session.parent, client, ServerAddress.parseString(route), data, false, null);
+    }
+
+    public static java.net.InetSocketAddress localServerAddress(String host, int port) {
+        Session session = active;
+        if (session == null || session.stopping || session.data == null
+            || !"127.0.0.1".equals(host) || !session.data.ip.equals(host + ":" + port)
+            || session.server.endpoint() == null) {
+            return null;
+        }
+        return new com.viaversion.viafabricplus.util.bedrock.NetherNetInetSocketAddress(
+            new java.net.InetSocketAddress(host, port), session.server.endpoint());
     }
 
     private static void tick(Minecraft client) {
@@ -150,23 +183,30 @@ public final class BedrockWorlds implements ClientModInitializer {
         session.stopping = true;
         session.server.cancel();
         WORKER.execute(() -> {
-            session.server.stop();
-            session.server.release();
-            active = null;
+            try {
+                session.server.stop();
+            } finally {
+                session.server.release();
+                if (active == session) {
+                    active = null;
+                }
+            }
         });
     }
 
     private static void shutdown() {
         Session session = active;
         if (session != null) {
+            session.server.cancel();
             session.server.stop();
+            session.server.release();
         }
     }
 
     private static final class Session {
         final WorldListScreen parent;
         final WorldServer server;
-        boolean stopping;
+        volatile boolean stopping;
         ServerData data;
         long loginDeadline;
         boolean joined;

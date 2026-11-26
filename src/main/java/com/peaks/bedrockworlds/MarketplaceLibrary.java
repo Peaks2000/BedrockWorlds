@@ -198,7 +198,7 @@ final class MarketplaceLibrary {
         return HttpRequest.newBuilder(uri).header("Accept", "application/json").timeout(Duration.ofSeconds(20));
     }
 
-    private static JsonObject request(HttpClient client, HttpRequest request) throws IOException, InterruptedException {
+    static JsonObject request(HttpClient client, HttpRequest request) throws IOException, InterruptedException {
         var response = client.send(request, HttpResponse.BodyHandlers.ofInputStream());
         try (var body = response.body()) {
             if (response.statusCode() != 200) {
@@ -213,8 +213,5 @@ final class MarketplaceLibrary {
     }
 
     record Item(UUID id, String name, String kind, String creator) {
-        URI storePage() {
-            return URI.create("https://www.minecraft.net/en-us/marketplace/pdp?id=" + id);
-        }
     }
 }

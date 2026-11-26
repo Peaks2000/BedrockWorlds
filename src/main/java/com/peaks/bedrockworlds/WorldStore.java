@@ -51,17 +51,64 @@ final class WorldStore {
     }
 
     World create(Options options, List<Path> archives) throws IOException {
+        return create(options, archives, List.of(), List.of());
+    }
+
+    World create(Options options, List<Path> archives, List<MarketplaceContent.Prepared> content,
+                 List<MarketplaceLibrary.Item> marketplace) throws IOException {
         options = validate(options);
+        var templates = content.stream().map(MarketplaceContent.Prepared::template)
+            .filter(java.util.Objects::nonNull).toList();
+        if (templates.size() > 1) {
+            throw new IOException("Choose one world template per world.");
+        }
         Path worlds = Files.createDirectories(root.resolve("worlds"));
         Path staging = Files.createTempDirectory(worlds, ".creating-");
         Path destination = worlds.resolve(UUID.randomUUID().toString());
         try {
-            PackInstaller.install(staging, archives);
+            if (!templates.isEmpty()) {
+                copyTree(templates.getFirst(), staging);
+            }
+            PackInstaller.install(staging, archives, content.stream()
+                .flatMap(item -> item.packs().stream()).toList());
+            if (!marketplace.isEmpty()) {
+                Files.writeString(staging.resolve("marketplace.json"), JSON.toJson(
+                    marketplace.stream().map(item -> item.id().toString()).toList()));
+            }
             Files.writeString(staging.resolve("world.json"), JSON.toJson(options));
             Files.move(staging, destination);
             return new World(destination, options);
         } finally {
             deleteTree(staging);
+        }
+    }
+
+    static void copyTree(Path source, Path destination) throws IOException {
+        try (var paths = Files.walk(source)) {
+            for (Path path : paths.toList()) {
+                Path target = destination.resolve(source.relativize(path).toString());
+                if (Files.isSymbolicLink(path)) {
+                    throw new IOException("Bedrock content cannot contain symbolic links.");
+                }
+                if (Files.isDirectory(path)) {
+                    Files.createDirectories(target);
+                } else {
+                    Files.copy(path, target);
+                }
+            }
+        }
+    }
+
+    static List<String> marketplace(World world) throws IOException {
+        Path file = world.directory().resolve("marketplace.json");
+        if (!Files.isRegularFile(file)) {
+            return List.of();
+        }
+        try (Reader reader = Files.newBufferedReader(file)) {
+            return com.google.gson.JsonParser.parseReader(reader).getAsJsonArray().asList().stream()
+                .map(value -> UUID.fromString(value.getAsString()).toString()).toList();
+        } catch (RuntimeException exception) {
+            throw new IOException("Could not read the world's Marketplace pack list.");
         }
     }
 

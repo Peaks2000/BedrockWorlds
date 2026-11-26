@@ -75,7 +75,7 @@ final class AddOnsScreen extends Screen {
         addRenderableWidget(Button.builder(Component.literal("Refresh"), button -> rebuildWidgets())
             .bounds(left + buttonWidth + 4, height - 28, buttonWidth, 20).build());
         addRenderableWidget(Button.builder(Component.literal("Marketplace"),
-            button -> minecraft.gui.setScreen(new MarketplaceScreen(this)))
+            button -> minecraft.gui.setScreen(new MarketplaceScreen(this, parent::selectMarketplace)))
             .bounds(left + (buttonWidth + 4) * 2, height - 28, buttonWidth, 20).build());
         addRenderableWidget(Button.builder(CommonComponents.GUI_DONE, button -> onClose())
             .bounds(left + (buttonWidth + 4) * 3, height - 28, buttonWidth, 20).build());

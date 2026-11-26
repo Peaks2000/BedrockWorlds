@@ -25,6 +25,7 @@ final class WorldServer {
     private final String container = "peaks-bedrock-" + java.util.UUID.randomUUID();
     private volatile boolean cancelled;
     private volatile Process process;
+    private volatile java.net.URI endpoint;
     private ServerRuntime runtime;
     private FileChannel lockFile;
 
@@ -74,6 +75,10 @@ final class WorldServer {
         }
         awaitReady(port);
         return port;
+    }
+
+    java.net.URI endpoint() {
+        return endpoint;
     }
 
     void cancel() {
@@ -178,14 +183,29 @@ final class WorldServer {
     private void awaitReady(int port) throws IOException, InterruptedException {
         long timeout = System.nanoTime() + Duration.ofMinutes(runtime == ServerRuntime.MAC ? 5 : 2).toNanos();
         var address = new InetSocketAddress("127.0.0.1", port);
-        while (System.nanoTime() < timeout && !cancelled) {
-            if (exited()) {
-                throw new IOException("Bedrock server exited during startup. See bedrock-server.log.");
+        try (var log = Files.newBufferedReader(root.resolve("bedrock-server.log"))) {
+            boolean started = false;
+            while (System.nanoTime() < timeout && !cancelled) {
+                if (exited()) {
+                    throw new IOException("Bedrock server exited during startup. See bedrock-server.log.");
+                }
+                for (int lines = 0; lines < 10_000; lines++) {
+                    String line = log.readLine();
+                    if (line == null) {
+                        break;
+                    }
+                    started |= line.endsWith(" INFO] Server started.");
+                }
+                // The signaling socket accepts requests before the game packet handlers are ready.
+                if (started) {
+                    java.net.URI found = BedrockHttpSignaling.probe(address);
+                    if (found != null) {
+                        endpoint = found;
+                        return;
+                    }
+                }
+                Thread.sleep(250);
             }
-            if (BedrockHttpSignaling.probe(address) != null) {
-                return;
-            }
-            Thread.sleep(250);
         }
         if (cancelled) {
             throw new InterruptedException();

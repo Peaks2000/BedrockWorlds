@@ -10,22 +10,23 @@ import java.util.concurrent.CompletableFuture;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.Tooltip;
-import net.minecraft.client.gui.screens.ConfirmLinkScreen;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.CommonComponents;
 import net.minecraft.network.chat.Component;
 
 final class MarketplaceScreen extends Screen {
     private final Screen parent;
+    private final java.util.function.Consumer<MarketplaceLibrary.Item> select;
     private List<MarketplaceLibrary.Item> items = List.of();
     private String status = "Loading owned Marketplace packs…";
     private boolean requested;
     private boolean loading;
     private int page;
 
-    MarketplaceScreen(Screen parent) {
+    MarketplaceScreen(Screen parent, java.util.function.Consumer<MarketplaceLibrary.Item> select) {
         super(Component.literal("My Marketplace Library"));
         this.parent = parent;
+        this.select = select;
     }
 
     @Override
@@ -77,7 +78,7 @@ final class MarketplaceScreen extends Screen {
             super(x, y, width, 32, Component.literal(item.name() + ", " + details),
                 button -> {
                     if (item.id() != null) {
-                        ConfirmLinkScreen.confirmLink(MarketplaceScreen.this, item.storePage()).onPress(button);
+                        select.accept(item);
                     }
                 }, DEFAULT_NARRATION);
             this.name = item.name();
@@ -117,7 +118,7 @@ final class MarketplaceScreen extends Screen {
                         finish(List.of(), "The linked account changed. Select Refresh.");
                     } else {
                         finish(library, library.isEmpty() ? "No owned Marketplace world packs found."
-                            : "Open a pack page. Activate purchases in Minecraft Bedrock or a Realm.");
+                            : "");
                     }
                 });
             } catch (Exception e) {
