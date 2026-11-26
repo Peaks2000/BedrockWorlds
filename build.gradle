@@ -5,7 +5,7 @@ plugins {
 }
 
 group = 'com.peaks'
-version = '0.4.2'
+version = '0.4.3'
 
 repositories {
     mavenCentral()
@@ -64,7 +64,7 @@ processResources {
 }
 
 jar {
-    from('LICENSE')
+    from('LICENSE', 'THIRD_PARTY_NOTICES.md')
 }
 
 test {

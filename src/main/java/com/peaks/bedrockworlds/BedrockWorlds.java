@@ -155,6 +155,41 @@ public final class BedrockWorlds implements ClientModInitializer {
             new java.net.InetSocketAddress(host, port), session.server.endpoint());
     }
 
+    public static void bindResourceConnection(ServerData data, net.minecraft.network.Connection connection) {
+        Session session = active;
+        if (session != null && !session.stopping && data != null && session.data == data) {
+            session.resourceUser = ((com.viaversion.viafabricplus.injection.access.core.IConnection) connection)
+                .viaFabricPlus$getUserConnection();
+        }
+    }
+
+    public static boolean ownsResourcePackStorage(Object storage) {
+        Session session = active;
+        var user = session == null ? null : session.resourceUser;
+        return session != null && !session.stopping && user != null && storage != null
+            && user.get(net.raphimc.viabedrock.protocol.storage.ResourcePackStorage.class) == storage;
+    }
+
+    public static void convertVanillaTextures(net.raphimc.viabedrock.protocol.storage.ResourcePackStorage storage,
+        net.raphimc.viabedrock.api.resourcepack.content.Content target) {
+        if (!ownsResourcePackStorage(storage)) {
+            return;
+        }
+        var sources = storage.getPackStackBottomToTop().stream().map(pack -> new VanillaTextures.Source(
+            pack.content().getFilesDeep("textures/", ""), pack.content()::get)).toList();
+        int copied = 0;
+        var protectedTextures = java.util.Set.copyOf(target.getFilesDeep("assets/minecraft/textures/", ".png"));
+        for (var asset : VanillaTextures.convert(sources).entrySet()) {
+            String texture = asset.getKey().endsWith(".mcmeta")
+                ? asset.getKey().substring(0, asset.getKey().length() - ".mcmeta".length()) : asset.getKey();
+            if (!protectedTextures.contains(texture) && !target.contains(asset.getKey())) {
+                target.put(asset.getKey(), asset.getValue());
+                copied++;
+            }
+        }
+        LOG.info("Added {} vanilla texture assets to the managed Bedrock world resource pack", copied);
+    }
+
     private static void tick(Minecraft client) {
         Session session = active;
         if (session == null || session.stopping || session.data == null) {
@@ -208,6 +243,7 @@ public final class BedrockWorlds implements ClientModInitializer {
         final WorldServer server;
         volatile boolean stopping;
         ServerData data;
+        volatile com.viaversion.viaversion.api.connection.UserConnection resourceUser;
         long loginDeadline;
         boolean joined;
 

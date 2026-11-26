@@ -32,7 +32,7 @@ Use JDK 25. Put the ViaFabricPlusPeaks 6.0.0-beta.2 JAR in `libs`, or pass its p
 ./gradlew -PviaFabricPlusJar=/path/to/ViaFabricPlusPeaks-6.0.0-beta.2.jar build
 ```
 
-On Windows use `gradlew.bat`. The result is `build/libs/bedrock-worlds-0.4.2.jar`.
+On Windows use `gradlew.bat`. The result is `build/libs/bedrock-worlds-0.4.3.jar`.
 
 Marketplace protocol reference: [read-only entitlement request](https://github.com/Daniel-Ric/PlayFab-Purchase-Service/blob/8ff0ecf82fbaeea756c6ccf35b13f930982c1e79/src/services/minecraft.service.js) and [PlayFab Get Items](https://learn.microsoft.com/en-us/rest/api/playfab/economy/catalog/get-items?view=playfab-rest).
 
@@ -45,3 +45,7 @@ Run this check against an installed ViaFabricPlusPeaks JAR with a graphical deve
 ```
 
 The isolated client uses synthetic session data and does not sign in or start a server. It verifies the actual mixed-in resolver with Java, maintained Bedrock and isolated Bedrock selected, plus unrelated addresses and stopped-session guards, then exits. Require `RESOLVER RESULT PASS`. Run a normal `clean build` afterward to produce a distributable without the integration entrypoint.
+
+## Local world textures
+
+Managed local worlds also convert vanilla block, item, colormap and matching entity texture paths into the Java server pack. Bedrock PNG/JPEG/TGA images and flipbook animations are handled locally, using the existing server-pack activation and disconnect cleanup. Pack-stack order is retained, and ViaBedrock's own converted assets take precedence. Bedrock-specific shader/material effects and incompatible model layouts are not translated by this texture bridge. Texture-name mapping attribution is recorded in `THIRD_PARTY_NOTICES.md` and included in the JAR.
