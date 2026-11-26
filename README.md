@@ -1,6 +1,6 @@
 # Bedrock Worlds for ViaFabricPlusPeaks
 
-Bedrock Worlds is a separate Fabric client mod for Minecraft Java 26.3 and Java 25. Install the add-on JAR beside ViaFabricPlusPeaks 5.2.5.
+Bedrock Worlds is a separate Fabric client mod for Minecraft Java 26.3 and Java 25. Install the add-on JAR beside ViaFabricPlusPeaks 6, including the 6.0.0 beta builds. ViaFabricPlusPeaks 5.2 remains supported.
 
 1. Link your Microsoft Bedrock account in ViaFabricPlusPeaks.
 2. Open **Singleplayer → Bedrock Worlds → Create New World**. Choose the name, seed, game mode and difficulty.
@@ -22,12 +22,12 @@ To diagnose a server startup error, open `Bedrock worlds/bedrock-server.log` in 
 
 ## Build
 
-Use JDK 25. Put the ViaFabricPlusPeaks 5.2.5 JAR in `libs`, or pass its path to Gradle.
+Use JDK 25. Put the ViaFabricPlusPeaks 6.0.0-beta.2 JAR in `libs`, or pass its path to Gradle.
 
 ```sh
-./gradlew -PviaFabricPlusJar=/path/to/ViaFabricPlusPeaks-5.2.5.jar build
+./gradlew -PviaFabricPlusJar=/path/to/ViaFabricPlusPeaks-6.0.0-beta.2.jar build
 ```
 
-On Windows use `gradlew.bat`. The result is `build/libs/bedrock-worlds-0.2.0.jar`.
+On Windows use `gradlew.bat`. The result is `build/libs/bedrock-worlds-0.3.0.jar`.
 
 Marketplace protocol reference: [read-only entitlement request](https://github.com/Daniel-Ric/PlayFab-Purchase-Service/blob/8ff0ecf82fbaeea756c6ccf35b13f930982c1e79/src/services/minecraft.service.js) and [PlayFab Get Items](https://learn.microsoft.com/en-us/rest/api/playfab/economy/catalog/get-items?view=playfab-rest).
