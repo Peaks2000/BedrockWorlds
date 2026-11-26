@@ -1,0 +1,16 @@
+allprojects {
+    afterEvaluate { project ->
+        if (project == rootProject) {
+            sourceSets.main.java.srcDir(file('src/integrationTest/java'))
+            tasks.named('processResources').configure {
+                doLast {
+                    def manifest = new File(destinationDir, 'fabric.mod.json')
+                    def json = new groovy.json.JsonSlurper().parse(manifest)
+                    json.entrypoints.client.add('com.peaks.bedrockworlds.ResolverIntegrationCheck')
+                    manifest.text = groovy.json.JsonOutput.toJson(json)
+                }
+            }
+            loom.runs.client.runDir = layout.buildDirectory.dir('resolver-smoke').get().asFile.absolutePath
+        }
+    }
+}
