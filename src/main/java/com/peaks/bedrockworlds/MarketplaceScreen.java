@@ -34,18 +34,18 @@ final class MarketplaceScreen extends Screen {
             load();
         }
 
-        int panel = Math.min(330, width - 20);
+        int panel = Math.min(420, width - 24);
         int left = (width - panel) / 2;
-        int rows = Math.max(1, (height - 117) / 24);
+        int rows = Math.max(1, (height - 125) / 36);
         int pages = Math.max(1, (items.size() + rows - 1) / rows);
         page = Math.min(page, pages - 1);
         for (int index = page * rows; index < Math.min(items.size(), (page + 1) * rows); index++) {
             var item = items.get(index);
-            var caption = item.name() + " · " + item.kind();
-            var row = Button.builder(Component.literal(font.plainSubstrByWidth(caption, panel - 12)),
-                ConfirmLinkScreen.confirmLink(this, item.storePage()))
-                .bounds(left, 34 + (index - page * rows) * 24, panel, 20).build();
-            row.setTooltip(Tooltip.create(Component.literal(caption)));
+            String details = item.creator().isBlank() ? item.kind() : item.creator() + " · " + item.kind();
+            var row = new PackButton(left, 34 + (index - page * rows) * 36, panel, item, details);
+            row.active = item.id() != null;
+            row.setTooltip(Tooltip.create(Component.literal(item.name() + "\n" + details
+                + (row.active ? "" : "\nThe Marketplace has not provided a product name for this entry."))));
             addRenderableWidget(row);
         }
 
@@ -67,6 +67,34 @@ final class MarketplaceScreen extends Screen {
         }).bounds(left, height - 28, half, 20).build()).active = !loading;
         addRenderableWidget(Button.builder(CommonComponents.GUI_BACK, button -> onClose())
             .bounds(left + half + 4, height - 28, half, 20).build());
+    }
+
+    private final class PackButton extends Button {
+        private final String name;
+        private final String details;
+
+        private PackButton(int x, int y, int width, MarketplaceLibrary.Item item, String details) {
+            super(x, y, width, 32, Component.literal(item.name() + ", " + details),
+                button -> {
+                    if (item.id() != null) {
+                        ConfirmLinkScreen.confirmLink(MarketplaceScreen.this, item.storePage()).onPress(button);
+                    }
+                }, DEFAULT_NARRATION);
+            this.name = item.name();
+            this.details = details;
+        }
+
+        @Override
+        protected void extractContents(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float delta) {
+            extractDefaultSprite(graphics);
+            int available = getWidth() - 20;
+            graphics.text(font, Component.literal(fit(name, available)), getX() + 10, getY() + 5, active ? 0xffffffff : 0xffcccccc);
+            graphics.text(font, Component.literal(fit(details, available)), getX() + 10, getY() + 18, 0xffdddddd);
+        }
+
+        private String fit(String text, int width) {
+            return font.width(text) <= width ? text : font.plainSubstrByWidth(text, width - font.width("…")) + "…";
+        }
     }
 
     private void load() {
@@ -118,8 +146,8 @@ final class MarketplaceScreen extends Screen {
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float delta) {
         super.extractRenderState(graphics, mouseX, mouseY, delta);
         graphics.centeredText(font, title, width / 2, 14, -1);
-        int y = height - 77;
-        for (var line : font.split(Component.literal(status), Math.max(90, Math.min(330, width - 20) - 10))) {
+        int y = height - 83;
+        for (var line : font.split(Component.literal(status), Math.max(90, Math.min(420, width - 24) - 10))) {
             graphics.centeredText(font, line, width / 2, y, 0xffdddddd);
             y += 10;
         }
